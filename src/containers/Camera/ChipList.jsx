@@ -23,16 +23,12 @@ export default function ChipList({ chipData }) {
       }}
       component="ul"
     >
-      {chipData.map((data, index) => {
+      {chipData.map((label, index) => {
         let icon;
-
-        if (data.label === "React") {
-          icon = <TagFacesIcon />;
-        }
 
         return (
           <ListItem key={index}>
-            <Chip icon={icon} label={data.service_name} onDelete={undefined} />
+            <Chip icon={icon} label={label} onDelete={undefined} />
           </ListItem>
         );
       })}

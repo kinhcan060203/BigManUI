@@ -43,13 +43,13 @@ const MenuProps = {
 
 const names = [
   "Crowd Detection",
-  "Object Counting",
+  "Vehicle Counting",
   "ReIdentify",
   "Speed Estimate",
 ];
 const map_ai_names = {
   "Crowd Detection": "crowd_detection",
-  "Object Counting": "object_counting",
+  "Vehicle Counting": "vehicle_counting",
   ReIdentify: "reidentify",
   "Speed Estimate": "speed_estimate",
 };
@@ -62,8 +62,11 @@ function getStyles(name, AISelected, theme) {
 }
 
 const area_data = [
-  { id: "THOIHOA1", name: "Group THOIHOA1" },
-  { id: "THOIHOA2", name: "Group THOIHOA2" },
+  { id: "LH-LTT-HV", name: "THGT điểm giao đường Lý Thái Tổ - Hùng Vương" },
+  { id: "LH-LTT-DK", name: "THGT điểm giao đường Lý Thái Tổ - Đồng Khởi" },
+  { id: "LH-HV-LL", name: "Nút giao Hùng Vương – Lê Lợi" },
+  { id: "LH-NVL-VNG", name: "Nút giao Nguyễn Văn Linh – Võ Nguyên Giáp" },
+  { id: "LH-NVL-HVL", name: "Ngã tư Nguyễn Văn Linh – Huỳnh Văn Lũy" },
 ];
 
 const AddCameraForm = ({ mode }) => {
@@ -200,7 +203,8 @@ const AddCameraForm = ({ mode }) => {
       .then((res) => {
         console.log(res);
         let data = res.data;
-        setCameraId(data.id);
+        console.log("#data", data);
+        setCameraId(data.camera_id);
         setCameraName(data.camera_name);
         setAreaId(data.area_id);
         setDesc(data.desc);

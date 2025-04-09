@@ -7,9 +7,10 @@ import OutlinedInput from "@mui/material/OutlinedInput";
 import Checkbox from "@mui/material/Checkbox";
 import ListItemText from "@mui/material/ListItemText";
 export function SingleSelectCustom({ data, label, singleSelectChange }) {
-  const [selectedValue, setSelectedValue] = React.useState("");
+  const [selectedValue, setSelectedValue] = React.useState(300);
 
   const handleChange = (event) => {
+    console.log("event.target.value", event.target.value);
     setSelectedValue(event.target.value);
     singleSelectChange && singleSelectChange(event.target.value);
   };
@@ -49,23 +50,29 @@ const MenuProps = {
 };
 
 export function MultipleSelectCustom({ data, label, multiSelectChange }) {
-  const [itemValue, setItemValue] = React.useState([]);
+  const [itemValue, setItemValue] = React.useState(["ALL"]);
 
   const handleChange = (event) => {
-    const {
+    let {
       target: { value },
     } = event;
+    console.log("value", value);
+    if (!value.includes("ALL") && value.length > 1) {
+      //   remove "ALL"
+      value = value.filter((item) => item !== "ALL");
+    } else if (value.includes("ALL") && value.length > 1) {
+      value = ["ALL"];
+    }
     multiSelectChange && multiSelectChange(value);
     setItemValue(
       // On autofill we get a stringified value.
       typeof value === "string" ? value.split(",") : value
     );
   };
-
   return (
     <div>
       <FormControl sx={{ m: 1, width: 300 }}>
-        <InputLabel id="demo-multiple-checkbox-label">Tag</InputLabel>
+        <InputLabel id="demo-multiple-checkbox-label">{label}</InputLabel>
         <Select
           labelId="demo-multiple-checkbox-label"
           id="demo-multiple-checkbox"
@@ -76,10 +83,18 @@ export function MultipleSelectCustom({ data, label, multiSelectChange }) {
           renderValue={(selected) => selected.join(", ")}
           MenuProps={MenuProps}
         >
+          <MenuItem key={"ALL"} value={"ALL"}>
+            <Checkbox checked={itemValue.includes("ALL")} />
+            <ListItemText primary={"ALL"} />
+          </MenuItem>
           {data.map((item) => (
-            <MenuItem key={item} value={item}>
-              <Checkbox checked={itemValue.includes(item)} />
-              <ListItemText primary={item} />
+            <MenuItem key={item.value} value={item.value}>
+              <Checkbox
+                checked={
+                  itemValue.includes(item.label) || itemValue.includes("ALL")
+                }
+              />
+              <ListItemText primary={item.label} />
             </MenuItem>
           ))}
         </Select>

@@ -1,46 +1,84 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import Hls from "hls.js";
 
-function LiveView() {
-  let currentSource = "camera1";
-  currentSource = `${import.meta.env.VITE_APP_HLS_DOMAIN}:${import.meta.env.VITE_APP_HLS_PORT}/stream/${currentSource}/channel/0/hls/live/index.m3u8`;
-  const HLS_MIME_TYPE = "application/vnd.apple.mpegurl";
-  videoRef = useRef(null);
-  const [loadedMetadata, setLoadedMetadata] = useState(false);
+function LiveView({ areaCameras }) {
+  // Danh sách tên areaCameras và ID
 
-  useEffect(() => {}, []);
+  const cameraIds = ["01", "02", "03", "04"];
 
-  useEffect(() => {
-    if (!videoRef.current) {
-      return;
-    }
+  // Khởi tạo ref cho tất cả video
+  const videoRefs = useRef({});
 
-    if (videoRef.current.canPlayType(HLS_MIME_TYPE)) {
-      videoRef.current.src = currentSource;
-      videoRef.current.load();
-      return;
-    } else if (Hls.isSupported()) {
-      var hls = new Hls();
-      hls.loadSource(videoSrc);
+  // Hàm khởi tạo HLS
+  const initHls = (video, src) => {
+    if (!video) return null;
+
+    let hls;
+    if (Hls.isSupported()) {
+      hls = new Hls();
+
+      hls.on(Hls.Events.FRAG_CHANGED, () => {
+        if (hls) {
+          hls.nextLevel = hls.currentLevel;
+        }
+      });
+
+      hls.loadSource(src);
       hls.attachMedia(video);
-    }
-  }, [videoRef]);
 
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play();
+      });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = src;
+      video.play();
+    } else {
+      console.error("HLS is not supported in this browser.");
+    }
+
+    return hls;
+  };
+  useEffect(() => {
+    const hlsInstances = [];
+
+    areaCameras.forEach((cam) => {
+      cameraIds.forEach((id) => {
+        const key = `${cam}-${id}`;
+        const src = `${import.meta.env.VITE_APP_HLS_DOMAIN}:${import.meta.env.VITE_APP_HLS_PORT}/stream/ai/${key}/hls/live/index.m3u8`;
+        const video = videoRefs.current[key];
+
+        if (video) {
+          const hls = initHls(video, src);
+          if (hls) hlsInstances.push(hls);
+        }
+      });
+    });
+
+    return () => {
+      hlsInstances.forEach((hls) => hls.destroy());
+    };
+  }, [areaCameras]);
   return (
-    <>
-      <video
-        ref={videoRef}
-        className={`size-full bg-black ${loadedMetadata ? "" : "invisible"}`}
-        // preload="auto"
-        autoPlay
-        controls={false}
-        playsInline
-        muted={muted}
-        onLoadedData={() => {
-          setLoadedMetadata(true);
-        }}
-      ></video>
-    </>
+    <div className="p-4 flex flex-row flex-wrap overflow-hidden w-full h-full justify-center items-start">
+      {areaCameras.map((cam) =>
+        cameraIds.map((id) => {
+          const key = `${cam}-${id}`;
+          return (
+            <div key={key}>
+              <video
+                ref={(el) => (videoRefs.current[key] = el)}
+                className="w-[250px] h-[150px] bg-black mr-4 mb-4"
+                controls
+                playsInline
+                autoPlay
+                muted
+              ></video>
+              <p className="text-white text-sm">{key}</p>
+            </div>
+          );
+        })
+      )}
+    </div>
   );
 }
 

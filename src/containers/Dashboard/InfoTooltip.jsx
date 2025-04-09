@@ -34,9 +34,9 @@ export default function InfoTooltip({ vehicleInfo, children }) {
               <React.Fragment>
                 <div
                   style={{
-                    width: "500px",
+                    width: "700px",
                     height: "400px",
-                    backgroundImage: `url(${vehicleInfo.full_image})`,
+                    backgroundImage: `url(${vehicleInfo.target_image})`,
                     backgroundSize: "contain",
                     backgroundPosition: "center",
                     backgroundRepeat: "no-repeat",

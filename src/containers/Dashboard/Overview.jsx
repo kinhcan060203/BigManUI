@@ -3,31 +3,29 @@ import { Grid, Box, Typography } from "@mui/material";
 import { PieChartCustom, StraightAnglePieChartCustom } from "./PieChartCustom";
 import { AreaChartCustom } from "./AreaChartCustom";
 import StatHeadManager from "./Overview/StatHeadManager";
-
+import { apiGetSummaryTraffic, apiGetCamera } from "../../connectDB/axios";
 import {
   SingleSelectCustom,
   MultipleSelectCustom,
 } from "../../components/SelectCustom";
-const trafficData = [
-  { id: 1, type: "Vượt đèn đỏ" },
-  { id: 2, type: "Quá tốc độ" },
-  { id: 3, type: "Ùn tắc" },
-  { id: 4, type: "Tai nạn" },
-];
-const ageOptions = [
-  { value: 10, label: "Ten" },
-  { value: 20, label: "Twenty" },
-  { value: 30, label: "Thirty" },
-];
 
-const names = [
-  "Page A",
-  "Page B",
-  "Page C",
-  "Page D",
-  "Page E",
-  "Page F",
-  "Page G",
+import SearchOptionBar from "../../components/SearchOptionBar";
+
+const trafficData = [
+  { id: 1, type: "Red light" },
+  { id: 2, type: "OverSpeed" },
+  { id: 3, type: "Traffic jam" },
+  { id: 4, type: "Accident" },
+];
+const intervalOptions = [
+  { value: (3600 * 0.5) / 6, label: "5 Minute" },
+  { value: (3600 * 0.5) / 3, label: "10 Minute" },
+  { value: 3600 * 0.5, label: "0.5 Hour" },
+  { value: 3600 * 1, label: "1 Hour" },
+  { value: 3600 * 3, label: "3 Hour" },
+  { value: 3600 * 6, label: "6 Hour" },
+  { value: 3600 * 24, label: "1 Day" },
+  { value: 3600 * 24 * 5, label: "5 Day" },
 ];
 
 const areaDistribution = {
@@ -87,25 +85,131 @@ function Overview() {
   const [dataArea, setDataArea] = useState({});
   const [multiSelectValues, setMultiSelectValues] = useState([]);
   const [area, setArea] = useState([]);
+  const [cameraInfo, setCameraInfo] = useState([]);
+  const [cameraNames, setCameraNames] = useState([]);
+  const [trafficCameraSelect, setTrafficCameraSelect] = useState(null);
+  const [trafficIntervalSelect, setTrafficIntervalSelect] = useState(
+    (3600 * 0.5) / 6
+  );
 
+  const field = ["car", "motorbike", "bus", "truck", "bicycle"];
+
+  const fetchCamera = async () => {
+    await apiGetCamera()
+      .then((res) => {
+        const { data } = res;
+        console.log("camera_info data", data);
+        if (data.length > 0) {
+          const _cameraInfo = data.map((item) => ({
+            id: item.camera_id,
+            item_id: item.camera_id,
+            item_name: item.camera_name,
+            group: item.group_name,
+          }));
+          setCameraInfo(_cameraInfo);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  };
+  const fetchSummaryTraffic = async ({
+    camera_ids = ["all"],
+    interval = 3600 * 0.5,
+  }) => {
+    let total_transformedData = {};
+
+    for (let i = 0; i < camera_ids.length; i++) {
+      const camera_id = camera_ids[i];
+      try {
+        const res = await apiGetSummaryTraffic({
+          camera_id: camera_id,
+          interval: interval,
+        });
+
+        const transformedData = Object.fromEntries(
+          Object.entries(res.summary).map(([date, items]) => {
+            const classCount = items.reduce((acc, item) => {
+              const className = item.class_name;
+              acc[className] = (acc[className] || 0) + 1;
+              return acc;
+            }, {});
+            return [date, classCount];
+          })
+        );
+
+        // Bổ sung date format + ensure đủ field
+        Object.keys(transformedData).forEach((date) => {
+          field.forEach((key) => {
+            if (!(key in transformedData[date])) {
+              transformedData[date][key] = 0;
+            }
+          });
+
+          // Add formatted date
+          const d = formatDateTime(date);
+          transformedData[date]["date"] = d;
+
+          // Gộp vào total_transformedData
+          if (!(date in total_transformedData)) {
+            total_transformedData[date] = { ...transformedData[date] };
+          } else {
+            field.forEach((key) => {
+              total_transformedData[date][key] =
+                (total_transformedData[date][key] || 0) +
+                (transformedData[date][key] || 0);
+            });
+          }
+        });
+      } catch (err) {
+        console.error("❌ fetchSummaryTraffic error:", err);
+      }
+    }
+
+    setDataArea((prev) => ({
+      ...prev,
+      traffic: total_transformedData,
+    }));
+  };
+
+  function formatDateTime(dateTimeStr) {
+    console.log("dateTimeStr", dateTimeStr);
+    const [date, time] = dateTimeStr.split(" ");
+    const [day, month, year] = date.split("-");
+    const [hour, minute] = time.split(":");
+
+    return dateTimeStr;
+  }
   useEffect(() => {
-    dataAreaOrg.forEach((item) => {
-      dataSpeed[item.name] = item;
-      dataTraffic[item.name] = item;
+    setTrafficCameraSelect("all");
+    fetchSummaryTraffic({
+      camera_ids: ["all"],
+      interval: trafficIntervalSelect,
     });
-    setDataArea({
-      speed: dataSpeed,
-      traffic: dataTraffic,
-    });
+    fetchCamera();
   }, []);
 
-  const multiSelectChange = (newMultiSelectValues) => {
-    setMultiSelectValues(newMultiSelectValues);
+  const handleTrafficCameraSelect = (data) => {
+    setTrafficCameraSelect(data?.item_id);
+    if (!data?.item_id) {
+      fetchSummaryTraffic({
+        camera_ids: ["all"],
+        interval: trafficIntervalSelect,
+      });
+    } else {
+      fetchSummaryTraffic({
+        camera_ids: [data?.item_id],
+        interval: trafficIntervalSelect,
+      });
+    }
   };
-  const singleSelectChange = (newSingleSelectValue) => {
-    setArea(areaDistribution[newSingleSelectValue]);
+  const singleSelectChange = (value) => {
+    setTrafficIntervalSelect(value);
+    fetchSummaryTraffic({
+      camera_ids: [trafficCameraSelect],
+      interval: value,
+    });
   };
-  console.log(dataArea.speed);
   const renderGrid = () => {
     const colors = ["green", "yellow", "red"];
     return (
@@ -143,7 +247,7 @@ function Overview() {
             <Typography variant="h6" className="font-bold" align="left">
               Alert information
             </Typography>
-            <SingleSelectCustom data={ageOptions} label="Age" />
+            <SingleSelectCustom data={intervalOptions} label="Interval" />
           </Box>
 
           <Grid container spacing={4}>
@@ -173,21 +277,22 @@ function Overview() {
               <Typography variant="h6" className="font-bold" align="left">
                 Traffic flow
               </Typography>
-              <Box className="flex-1 flex justify-end">
+              <Box className="flex-1 flex justify-end items-center">
                 <SingleSelectCustom
-                  data={ageOptions}
-                  label="Age"
+                  data={intervalOptions}
+                  label="Interval"
                   singleSelectChange={singleSelectChange}
                 />
-                <MultipleSelectCustom
-                  data={names}
-                  label="Names"
-                  multiSelectChange={multiSelectChange}
+                <SearchOptionBar
+                  data={cameraInfo}
+                  label="Camera info"
+                  callBack={handleTrafficCameraSelect}
+                  width={250}
                 />
               </Box>
             </Box>
 
-            <Box className="h-[200px] flex align-center justify-center mt-2">
+            <Box className="h-[300px] flex align-center justify-center mt-2">
               <AreaChartCustom
                 title="Traffic flow"
                 data={dataArea.traffic && Object.values(dataArea.traffic)}
@@ -196,11 +301,11 @@ function Overview() {
               />
             </Box>
           </Box>
-          <Box sx={{ mt: 4 }}>
+          <Box sx={{ mt: 4, mb: 4 }}>
             <Typography variant="h6" className="font-bold mb-4" align="left">
               Speed flow
             </Typography>
-            <Box className="h-[200px] flex align-center justify-center mt-2">
+            <Box className="h-[300px] flex align-center justify-center mt-2">
               <AreaChartCustom
                 title="Speed flow"
                 data={dataArea.speed && Object.values(dataArea.speed)}

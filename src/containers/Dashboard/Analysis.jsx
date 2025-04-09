@@ -14,21 +14,9 @@ import EventList from "./EventList";
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import { apiGetEventOverview } from "../../connectDB/axios";
 import PopupManager from "./PopupManager";
-const mapContainerStyle = {
-  width: "100%",
-  height: "100%",
-};
-
-const center = {
-  lat: 40.7128,
-  lng: -74.006,
-};
-
-const markers = [
-  { id: 1, position: { lat: 40.7128, lng: -74.006 } },
-  { id: 2, position: { lat: 40.7138, lng: -74.007 } },
-  { id: 3, position: { lat: 40.7148, lng: -74.008 } },
-];
+import LiveView from "../../containers/LiveView";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 
 function Analysis() {
   const [count, setCount] = useState(0);
@@ -40,8 +28,25 @@ function Analysis() {
 
   const [closeChart, setCloseChart] = useState(false);
   const [reviewImage, setReviewImage] = useState({});
-  const [openDetail, setOpenDetail] = useState({ open: false });
+  const [openDetail, setOpenDetail] = useState({ open: false, row: {} });
+  const [areaCameraIndex, setAreaCameraIndex] = useState(0);
+  const [areaCameras, setAreaCameras] = useState([]);
 
+  const areaTabs = [
+    "All",
+    "LH-VNG-LL_CAM",
+    "LH-HV-LL_CAM",
+    "LH-LTT-HV_CAM",
+    "LH-LTT-DK_CAM",
+    "LH-NVL-VNG_CAM",
+  ];
+  useEffect(() => {
+    if (areaCameraIndex === 0) {
+      setAreaCameras(areaTabs.slice(1));
+    } else {
+      setAreaCameras([areaTabs[areaCameraIndex]]);
+    }
+  }, [areaCameraIndex]);
   useEffect(() => {
     apiGetEventOverview({
       event_type: "license_plate",
@@ -50,27 +55,26 @@ function Analysis() {
       .then((res) => {
         setTableRows(
           res.items.map((item, index) => {
-            item.full_thumbnail_path = item.full_thumbnail_path.replace(
-              "192.168.103.219",
-              "localhost"
+            item.full_thumbnail_path = item.full_thumbnail_path?.replace(
+              "192.168.101.4",
+              "100.112.243.28"
             );
-            item.target_thumbnail_path = item.target_thumbnail_path.replace(
-              "192.168.103.219",
-              "localhost"
+            item.target_thumbnail_path = item.target_thumbnail_path?.replace(
+              "192.168.101.4",
+              "100.112.243.28"
             );
-            item.data.plate_thumb_path = item.data.plate_thumb_path.replace(
-              "192.168.103.219",
-              "localhost"
+            item.data.plate_thumb_path = item.data.plate_thumb_path?.replace(
+              "192.168.101.4",
+              "100.112.243.28"
             );
-            item.start_time = item.start_time.slice(0, 19);
-            item.start_time = item.start_time.split("T");
+            let start_time = item.start_time["$date"];
             return {
               id: index,
               full_image: item.full_thumbnail_path,
               target_image: item.target_thumbnail_path,
               plate_image: item.data.plate_thumb_path,
               lpr: item.data.target_label,
-              start_time: item.start_time,
+              start_time: start_time,
               event_type: item.event_type,
               camera_id: item.camera_id,
               is_reviewed: item.is_reviewed,
@@ -88,53 +92,23 @@ function Analysis() {
   const handleClose = () => {
     setOpenDetail({ open: false });
   };
+
   return (
     <Box sx={{ p: 2 }}>
-      <PopupManager open={openDetail.open} handleClose={handleClose} />
+      <PopupManager
+        open={openDetail.open}
+        data={openDetail.row}
+        handleClose={handleClose}
+      />
+      <Tabs value={areaCameraIndex} onChange={(e, v) => setAreaCameraIndex(v)}>
+        {areaTabs.map((area, index) => (
+          <Tab key={index} label={area} />
+        ))}
+      </Tabs>
       <Grid container spacing={2}>
         {/* Map Section */}
         <Grid item xs={12} md={7}>
-          <div className="relative w-full h-full">
-            <LoadScript googleMapsApiKey="AIzaSyAtZLJb1hldI5kCRbRJxUkIy7xHjhLpUzs">
-              <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={center}
-                zoom={14}
-              >
-                {markers.map((marker) => (
-                  <Marker key={marker.id} position={marker.position} />
-                ))}
-              </GoogleMap>
-            </LoadScript>
-            <div className="bg-white absolute bg-opacity-30 bottom-0 p-4 w-full">
-              {closeChart && <ChartPopManager />}
-            </div>
-            <div className="absolute ml-2 mt-2 top-0 left-0 w-[320px] h-[420px]  space-y-3">
-              {reviewImage.full && (
-                <div className="bg-black  p-4 w-full h-[47%]"></div>
-              )}
-              {/* {reviewImage.target && (
-                <div className="bg-black  p-4 w-full h-[47%]"></div>
-              )} */}
-            </div>
-
-            <AutoGraphIcon
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                margin: "8px",
-                fontSize: "34px",
-                backgroundColor: closeChart ? "black" : "transparent",
-                borderRadius: "2px",
-                padding: "2px",
-                color: "white",
-                border: "1px solid white",
-                transition: "all 0.3s",
-              }}
-              onClick={() => setCloseChart(!closeChart)}
-            />
-          </div>
+          <LiveView areaCameras={areaCameras} />
         </Grid>
 
         {/* Right Sidebar Tool */}

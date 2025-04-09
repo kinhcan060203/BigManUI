@@ -209,15 +209,16 @@ export default function CameraList() {
       await apiGetCamera()
         .then((res) => {
           const { data } = res;
-          console.log(data);
           let new_rows = [];
           data.forEach((item, index) => {
             let id = item.camera_id;
             let camera_name = item.camera_name;
             let camera_id = item.camera_id;
-            let ai_engines = item.services.filter((service) => service.active);
-            let status = item.data.status;
-
+            let ai_engines = Object.entries(item.services)
+              .filter(([key, value]) => value.enable)
+              .map(([key, _]) => key);
+            let status = item.status;
+            console.log("ai_engines", ai_engines);
             let rp = createData(
               id,
               camera_name,
